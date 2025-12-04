@@ -362,7 +362,7 @@ def request(
         identifier = str(identifier)
     # If identifier is a list and in specified namespace, batch retrieve cids, then join with commas into string
     if not isinstance(identifier, str) and namespace in ['name', 'smiles', 'inchi', 'inchikey']:
-        identifier = batch_retrieve_pubchem_cids(identifier, namespace)
+        identifier = batch_retrieve_cids(identifier, namespace)
         identifier = ",".join(str(x) for x in identifier)
         namespace = 'cid'
     # If identifier is a list, join with commas into string
@@ -440,7 +440,7 @@ def get(
     return response
 
 
-def batch_retrieve_pubchem_cids(
+def batch_retrieve_cids(
     identifiers: List[str],
     namespace: str = 'name',
     chunk_size: int = 1000,
@@ -465,8 +465,8 @@ def batch_retrieve_pubchem_cids(
         chunk = identifiers[i:i + chunk_size]
 
         # Create and send the batch request
-        xml_request = create_batch_properties_request_xml(chunk, namespace)
-        initial_response = send_xml_to_pubchem(xml_request)
+        xml_request = create_batch_cid_request_xml(chunk, namespace)
+        initial_response = send_xml_to_pug(xml_request)
 
         # Extract request ID
         root = ET.fromstring(initial_response)
@@ -491,7 +491,7 @@ def batch_retrieve_pubchem_cids(
             continue
 
         # Download and parse CID file
-        file_content = download_file_from_pubchem(download_url)
+        file_content = download_file_from_pug(download_url)
         identifier_to_cid = parse_cid_file(file_content)
 
         if not identifier_to_cid:
@@ -505,7 +505,7 @@ def batch_retrieve_pubchem_cids(
     return cids
 
 
-def send_xml_to_pubchem(xml_data: str) -> str:
+def send_xml_to_pug(xml_data: str) -> str:
     """Sends an XML request to the PubChem PUG REST service."""
     headers = {'Content-Type': 'application/xml'}
     response = requests.post(PUBCHEM_PUG_URL, data=xml_data, headers=headers, timeout=30)
@@ -516,13 +516,11 @@ def send_xml_to_pubchem(xml_data: str) -> str:
         response.raise_for_status()
 
 
-def create_batch_properties_request_xml(
+def create_batch_cid_request_xml(
     identifiers: List[str],
     identifier_type: str,
 ) -> str:
-    """Creates the initial XML request for batch property retrieval using ID exchange.
-    This matches the format from the working example code.
-    """
+    """Creates the initial XML request for batch property retrieval using ID exchange."""
     root = ET.Element("PCT-Data")
     input_data = ET.SubElement(root, "PCT-Data_input")
     input_data = ET.SubElement(input_data, "PCT-InputData")
@@ -586,7 +584,7 @@ def create_status_request_xml(req_id: str) -> str:
     return ET.tostring(root, encoding='unicode')
 
 
-def download_file_from_pubchem(url: str) -> str:
+def download_file_from_pug(url: str) -> str:
     """Downloads a file from the given URL."""
     # Convert FTP to HTTPS if needed
     https_url = url.replace('ftp://', 'https://')
@@ -610,7 +608,7 @@ def poll_request_status(
         status_xml = create_status_request_xml(req_id)
 
         try:
-            status_response = send_xml_to_pubchem(status_xml)
+            status_response = send_xml_to_pug(status_xml)
         except Exception as e:
             return None
 
