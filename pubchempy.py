@@ -499,7 +499,7 @@ def batch_retrieve_cids(
             continue
 
         # Fetch CIDs
-        chunk_cids = list(identifier_to_cid.values())
+        chunk_cids = [identifier_to_cid.get(identifier, DUMMY_CID) for identifier in chunk]
         cids.extend(chunk_cids)
 
     return cids
